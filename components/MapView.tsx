@@ -39,6 +39,7 @@ interface MapViewProps {
   origin: string;
   destination: string;
   isNavigating: boolean;
+  activeEvent?: string;
 }
 
 // Coordinates for KL and Genting
@@ -82,8 +83,29 @@ export default function MapView({
   origin,
   destination,
   isNavigating,
+  activeEvent,
 }: MapViewProps) {
   const [mounted, setMounted] = useState(false);
+
+  // Custom icon for accidents
+  const accidentIcon = typeof window !== "undefined" ? L.divIcon({
+    className: 'bg-transparent',
+    html: `<div class="w-8 h-8 bg-red-500/20 border-2 border-red-500 rounded-full flex items-center justify-center animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.6)]">
+             <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+           </div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  }) : undefined;
+
+  // Custom icon for traffic jams
+  const trafficIcon = typeof window !== "undefined" ? L.divIcon({
+    className: 'bg-transparent',
+    html: `<div class="w-8 h-8 bg-amber-500/20 border-2 border-amber-500 rounded-full flex items-center justify-center animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.6)]">
+             <div class="w-3 h-3 bg-amber-500 rounded-full"></div>
+           </div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  }) : undefined;
 
   useEffect(() => {
     setTimeout(() => setMounted(true), 0);
@@ -130,11 +152,40 @@ export default function MapView({
         <>
           <Polyline
             positions={ROUTE_POINTS}
-            color="#3b82f6" // Tesla blue path
+            color={activeEvent === 'TRAFFIC_JAM' ? '#f59e0b' : activeEvent === 'ACCIDENT' ? '#ef4444' : '#3b82f6'}
             weight={6}
             opacity={0.8}
             className="animate-pulse"
           />
+          {activeEvent === 'ACCIDENT' && (
+            <Polyline 
+              positions={[ROUTE_POINTS[0], [3.25, 101.7], ROUTE_POINTS[ROUTE_POINTS.length - 1]]} // Fake detour
+              color="#a855f7" // Purple detour
+              weight={4} 
+              opacity={0.8}
+              dashArray="10, 10"
+            />
+          )}
+
+          {/* Event Markers */}
+          {activeEvent === 'ACCIDENT' && accidentIcon && (
+            <Marker position={ROUTE_POINTS[3]} icon={accidentIcon}>
+              <Popup className="bg-neutral-900 text-white border-neutral-800">
+                <div className="font-bold text-red-500">Major Accident</div>
+                <div className="text-xs text-neutral-400 mt-1">Multi-vehicle collision. +1h 20m delay.</div>
+              </Popup>
+            </Marker>
+          )}
+
+          {activeEvent === 'TRAFFIC_JAM' && trafficIcon && (
+            <Marker position={ROUTE_POINTS[2]} icon={trafficIcon}>
+              <Popup className="bg-neutral-900 text-white border-neutral-800">
+                <div className="font-bold text-amber-500">Severe Congestion</div>
+                <div className="text-xs text-neutral-400 mt-1">Heavy traffic ahead. +45m delay.</div>
+              </Popup>
+            </Marker>
+          )}
+
           <Marker position={KL_COORDS}>
             <Popup className="bg-neutral-900 text-white border-neutral-800">
               <div className="text-sm font-semibold">Origin</div>

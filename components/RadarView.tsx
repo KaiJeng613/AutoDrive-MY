@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { motion } from 'motion/react';
-import { Car, Zap, User, Bike, ShieldAlert, ChevronDown, Camera } from 'lucide-react';
+import { Car, Zap, User, Bike, ShieldAlert, ChevronDown, Camera, AlertTriangle } from 'lucide-react';
 
-type EntityType = 'CAR' | 'EV' | 'MOTORCYCLE' | 'PEDESTRIAN' | 'WALL';
+type EntityType = 'CAR' | 'EV' | 'MOTORCYCLE' | 'PEDESTRIAN' | 'WALL' | 'ACCIDENT';
 
 interface Entity {
   id: number;
@@ -34,7 +34,7 @@ const MOTO_MODELS = [
   { model: 'Honda RS150R', type: 'MOTORCYCLE' },
 ];
 
-export default function RadarView({ isNavigating, currentSpeed, dashcamConnected }: { isNavigating: boolean, currentSpeed: number, dashcamConnected: boolean }) {
+export default function RadarView({ isNavigating, currentSpeed, dashcamConnected, activeEvent }: { isNavigating: boolean, currentSpeed: number, dashcamConnected: boolean, activeEvent?: string }) {
   const [entities, setEntities] = useState<Entity[]>([]);
   const [proximityAlert, setProximityAlert] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -110,6 +110,25 @@ export default function RadarView({ isNavigating, currentSpeed, dashcamConnected
       setEntities(prev => {
         let newEntities = [...prev];
 
+        // If accident event, ensure an accident entity exists
+        if (activeEvent === 'ACCIDENT') {
+          const hasAccident = newEntities.some(e => e.type === 'ACCIDENT');
+          if (!hasAccident) {
+            newEntities.push({
+              id: Math.random(),
+              type: 'ACCIDENT',
+              model: 'CRASHED VEHICLE',
+              x: 50,
+              y: 20, // Spawn ahead
+              speed: 0,
+              lane: 1
+            });
+          }
+        } else {
+          // Remove accident entity if event is cleared
+          newEntities = newEntities.filter(e => e.type !== 'ACCIDENT');
+        }
+
         // 1. Update positions based on relative speed
         newEntities = newEntities.map(e => {
           // If we are faster, relativeSpeed is positive -> they move down (+y) towards us
@@ -146,8 +165,26 @@ export default function RadarView({ isNavigating, currentSpeed, dashcamConnected
         newEntities = newEntities.filter(e => e.y < 150 && e.y > -100);
 
         // 4. Spawn new entities safely
-        if (Math.random() > 0.85 && newEntities.length < 10) {
+        let spawnChance = 0.85;
+        let maxEntities = 10;
+        
+        if (activeEvent === 'TRAFFIC_JAM') {
+          spawnChance = 0.5; // Spawn more frequently
+          maxEntities = 25; // More cars
+        } else if (activeEvent === 'ACCIDENT') {
+          spawnChance = 0.7;
+          maxEntities = 15;
+        }
+
+        if (Math.random() > spawnChance && newEntities.length < maxEntities) {
           const newE = generateEntity();
+          
+          if (activeEvent === 'TRAFFIC_JAM') {
+            newE.speed = 10 + Math.random() * 15; // Slow speeds
+          } else if (activeEvent === 'ACCIDENT') {
+            newE.speed = 0 + Math.random() * 10; // Very slow or stopped
+          }
+
           // Only spawn if the space is completely clear at the top
           const conflict = newEntities.some(e => e.lane === newE.lane && e.y < 15);
           if (!conflict) {
@@ -177,7 +214,7 @@ export default function RadarView({ isNavigating, currentSpeed, dashcamConnected
     }, 50);
 
     return () => clearInterval(interval);
-  }, [isNavigating, currentSpeed]);
+  }, [isNavigating, currentSpeed, activeEvent]);
 
   // Clear entities when navigation stops
   useEffect(() => {
@@ -304,6 +341,10 @@ export default function RadarView({ isNavigating, currentSpeed, dashcamConnected
             </div>
           ) : entity.type === 'WALL' ? (
             <div className="w-2 h-32 bg-red-500/50 border-l border-r border-red-400 shadow-[0_0_10px_rgba(239,68,68,0.3)]" />
+          ) : entity.type === 'ACCIDENT' ? (
+            <div className="w-12 h-20 bg-red-900/80 border-2 border-red-500 rounded-lg relative shadow-[0_0_20px_rgba(239,68,68,0.6)] flex items-center justify-center animate-pulse">
+               <AlertTriangle className="w-6 h-6 text-red-400" />
+            </div>
           ) : null}
           
           {/* Label */}
@@ -313,11 +354,13 @@ export default function RadarView({ isNavigating, currentSpeed, dashcamConnected
                 entity.type === 'MOTORCYCLE' ? 'bg-neutral-800/80 text-neutral-300' :
                 entity.type === 'PEDESTRIAN' ? 'bg-cyan-900/80 text-cyan-300' :
                 entity.type === 'WALL' ? 'bg-red-900/80 text-red-300' :
+                entity.type === 'ACCIDENT' ? 'bg-red-600 text-white font-bold' :
                 'bg-neutral-800/80 text-neutral-300'}`}>
               
               {entity.type === 'EV' && <Zap className="w-2.5 h-2.5" />}
               {entity.type === 'MOTORCYCLE' && <Bike className="w-2.5 h-2.5" />}
               {entity.type === 'PEDESTRIAN' && <User className="w-2.5 h-2.5" />}
+              {entity.type === 'ACCIDENT' && <ShieldAlert className="w-2.5 h-2.5" />}
               {entity.model}
             </div>
           </div>
