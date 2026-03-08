@@ -1,0 +1,5 @@
+{
+  "name": "AutonoDrive MY",
+  "description": "Autonomous driving simulation and advanced traffic routing for Malaysian highways, featuring real-time vehicle detection and EV identification.",
+  "requestFramePermissions": ["geolocation"]
+}
