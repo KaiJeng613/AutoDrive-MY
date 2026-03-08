@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MapPin, Navigation, AlertTriangle, Activity, Sparkles, Calendar, CloudRain } from 'lucide-react';
+import { MapPin, Navigation, AlertTriangle, Activity, Sparkles, Calendar, CloudRain, Battery, Zap } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import dynamic from 'next/dynamic';
 import RadarView from './RadarView';
@@ -99,194 +99,191 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="h-screen w-full flex bg-neutral-950 text-neutral-200 overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-[400px] bg-neutral-900 border-r border-neutral-800 flex flex-col z-10 overflow-y-auto custom-scrollbar">
-        <div className="p-6 border-b border-neutral-800 sticky top-0 bg-neutral-900/95 backdrop-blur z-20">
-          <h1 className="text-xl font-bold text-emerald-400 flex items-center gap-2">
-            <Activity className="w-6 h-6" />
-            AutonoDrive MY
-          </h1>
-          <p className="text-xs text-neutral-500 mt-1 uppercase tracking-wider">Openpilot Vision + AI</p>
-        </div>
-
-        <div className="p-6 flex-1 flex flex-col gap-8">
-          {/* Route Planning */}
-          <div className="space-y-4">
-            <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wider">Route Planning</h2>
-            
-            <div className="space-y-3">
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
-                <input
-                  type="text"
-                  value={origin}
-                  onChange={(e) => setOrigin(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-                  placeholder="Origin"
-                  suppressHydrationWarning
-                />
-              </div>
-              <div className="relative">
-                <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
-                <input
-                  type="text"
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-                  placeholder="Destination"
-                  suppressHydrationWarning
-                />
-              </div>
+    <div className="h-screen w-full flex bg-neutral-950 text-neutral-200 overflow-hidden font-sans">
+      {/* Left: Tesla FSD Visualization (RadarView) */}
+      <div className="w-[400px] lg:w-[450px] h-full relative bg-neutral-900 border-r border-neutral-800 flex flex-col z-20 shadow-2xl">
+         {/* Telemetry Header */}
+         <div className="absolute top-0 left-0 right-0 p-6 bg-gradient-to-b from-neutral-900 to-transparent z-30 pointer-events-none flex justify-between items-start">
+            <div className="flex flex-col">
+               <div className="text-5xl font-bold text-white tracking-tighter">{currentSpeed}</div>
+               <div className="text-sm text-neutral-400 font-bold uppercase tracking-widest">km/h</div>
             </div>
+            <div className="flex flex-col items-end">
+               <div className="flex items-center gap-2 text-emerald-400 font-bold text-xl">
+                  <Battery className="w-5 h-5" />
+                  68%
+               </div>
+               <div className="text-xs text-neutral-400 uppercase tracking-widest">Battery</div>
+            </div>
+         </div>
 
-            <button
-              onClick={toggleNavigation}
-              className={`w-full py-3 rounded-lg font-medium transition-all ${
-                isNavigating 
-                  ? 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20' 
-                  : 'bg-emerald-500 text-neutral-950 hover:bg-emerald-400'
-              }`}
-              suppressHydrationWarning
-            >
-              {isNavigating ? 'Stop Autopilot' : 'Engage Autopilot'}
-            </button>
-          </div>
+         {/* Radar View */}
+         <div className="flex-1 relative overflow-hidden">
+            <RadarView isNavigating={isNavigating} currentSpeed={currentSpeed} />
+         </div>
 
-          {/* AI Festive Forecast */}
-          <div className="space-y-4 pt-6 border-t border-neutral-800">
-            <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-purple-400" />
-              AI Festive Forecast
-            </h2>
-            
-            <div className="space-y-3">
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
-                <input
-                  type="date"
-                  value={forecastDate}
-                  onChange={(e) => setForecastDate(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-purple-500 transition-colors text-neutral-300"
-                  style={{ colorScheme: 'dark' }}
-                  suppressHydrationWarning
-                />
-              </div>
+         {/* Bottom Controls / Status */}
+         <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-neutral-900 to-transparent z-30">
+            <div className="bg-neutral-950/80 backdrop-blur border border-neutral-800 rounded-xl p-4">
+               <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">System Status</div>
+               <div className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${isNavigating ? 'bg-emerald-500 animate-pulse' : 'bg-neutral-500'}`} />
+                  {isNavigating ? 'Autopilot Simulation Active' : 'Manual Driving'}
+               </div>
+            </div>
+         </div>
+      </div>
+
+      {/* Right: Map & Controls */}
+      <div className="flex-1 h-full relative z-10">
+         <MapView origin={origin} destination={destination} isNavigating={isNavigating} />
+
+         {/* Floating Control Panel */}
+         <div className="absolute top-6 left-6 w-[380px] bg-neutral-950/90 backdrop-blur-xl border border-neutral-800 rounded-2xl p-6 z-[400] shadow-2xl max-h-[calc(100vh-48px)] overflow-y-auto custom-scrollbar">
+            <h1 className="text-xl font-bold text-emerald-400 flex items-center gap-2 mb-6">
+              <Activity className="w-6 h-6" />
+              AutonoDrive MY
+            </h1>
+
+            {/* Route Planning */}
+            <div className="space-y-4">
+              <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wider">Route Planning</h2>
               
+              <div className="space-y-3">
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                  <input
+                    type="text"
+                    value={origin}
+                    onChange={(e) => setOrigin(e.target.value)}
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                    placeholder="Origin"
+                    suppressHydrationWarning
+                  />
+                </div>
+                <div className="relative">
+                  <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
+                  <input
+                    type="text"
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value)}
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                    placeholder="Destination"
+                    suppressHydrationWarning
+                  />
+                </div>
+              </div>
+
               <button
-                onClick={generateForecast}
-                disabled={isForecasting}
-                className="w-full py-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg text-sm font-medium hover:bg-purple-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                onClick={toggleNavigation}
+                className={`w-full py-3 rounded-lg font-medium transition-all ${
+                  isNavigating 
+                    ? 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20' 
+                    : 'bg-emerald-500 text-neutral-950 hover:bg-emerald-400'
+                }`}
                 suppressHydrationWarning
               >
-                {isForecasting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
-                    Analyzing Data...
-                  </>
-                ) : (
-                  'Predict Traffic'
-                )}
+                {isNavigating ? 'Stop Autopilot Simulation' : 'Engage Autopilot Simulation'}
               </button>
-
-              {forecastResult && (
-                <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-neutral-300 leading-relaxed">
-                  {forecastResult}
-                </div>
-              )}
             </div>
-          </div>
 
-          {/* Weather & Traffic Impact */}
-          <div className="space-y-4 pt-6 border-t border-neutral-800">
-            <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
-              <CloudRain className="w-4 h-4 text-blue-400" />
-              Weather Predictor
-            </h2>
-            
-            <div className="space-y-3">
-              <div className="relative">
-                <input
-                  type="time"
-                  value={weatherTime}
-                  onChange={(e) => setWeatherTime(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg py-2 px-4 text-sm focus:outline-none focus:border-blue-500 transition-colors text-neutral-300"
-                  style={{ colorScheme: 'dark' }}
-                  suppressHydrationWarning
-                />
-              </div>
-              
-              <button
-                onClick={generateWeatherImpact}
-                disabled={isWeatherPredicting}
-                className="w-full py-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg text-sm font-medium hover:bg-blue-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                suppressHydrationWarning
-              >
-                {isWeatherPredicting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                    Analyzing Weather...
-                  </>
-                ) : (
-                  'Predict Weather Impact'
-                )}
-              </button>
-
-              {weatherResult && (
-                <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-neutral-300 leading-relaxed">
-                  {weatherResult}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Telemetry */}
-          <div className="space-y-4 pt-6 border-t border-neutral-800">
-            <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wider">Telemetry</h2>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-neutral-950 p-4 rounded-lg border border-neutral-800">
-                <div className="text-xs text-neutral-500 mb-1">SPEED</div>
-                <div className="text-2xl font-mono text-white">{currentSpeed} <span className="text-sm text-neutral-500">km/h</span></div>
-              </div>
-              <div className="bg-neutral-950 p-4 rounded-lg border border-neutral-800">
-                <div className="text-xs text-neutral-500 mb-1">TRAFFIC</div>
-                <div className="text-sm font-medium text-amber-400">{trafficStatus}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-auto space-y-4 pt-6 border-t border-neutral-800">
-            <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-lg flex gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
-              <p className="text-xs text-amber-200/80 leading-relaxed">
-                CNY traffic detected on Karak Highway. Autopilot routing via alternative scenic route.
+            {/* EV Chargers Info */}
+            <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg flex gap-3">
+              <Zap className="w-5 h-5 text-blue-400 shrink-0" />
+              <p className="text-xs text-blue-200/80 leading-relaxed">
+                EV Charging Stations are marked on the map. Navigate to them if battery drops below 20%.
               </p>
             </div>
-          </div>
-        </div>
-      </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col relative">
-        {/* Top: Map View */}
-        <div className="h-[55%] relative border-b border-neutral-800 z-0">
-          <MapView origin={origin} destination={destination} isNavigating={isNavigating} />
-          
-          {/* Overlay Stats */}
-          <div className="absolute top-6 right-6 flex gap-4 z-[400]">
-            <div className="bg-neutral-900/80 backdrop-blur-md border border-neutral-800 px-4 py-2 rounded-full flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs font-medium">GPS Active</span>
+            {/* AI Festive Forecast */}
+            <div className="space-y-4 pt-6 mt-6 border-t border-neutral-800">
+              <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-purple-400" />
+                AI Festive Forecast
+              </h2>
+              
+              <div className="space-y-3">
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                  <input
+                    type="date"
+                    value={forecastDate}
+                    onChange={(e) => setForecastDate(e.target.value)}
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-purple-500 transition-colors text-neutral-300"
+                    style={{ colorScheme: 'dark' }}
+                    suppressHydrationWarning
+                  />
+                </div>
+                
+                <button
+                  onClick={generateForecast}
+                  disabled={isForecasting}
+                  className="w-full py-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg text-sm font-medium hover:bg-purple-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  suppressHydrationWarning
+                >
+                  {isForecasting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                      Analyzing Data...
+                    </>
+                  ) : (
+                    'Predict Traffic'
+                  )}
+                </button>
+
+                {forecastResult && (
+                  <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-lg text-sm text-neutral-300 leading-relaxed">
+                    {forecastResult}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Bottom: Radar / Sensor View */}
-        <div className="h-[45%] bg-neutral-950 relative overflow-hidden z-10">
-          <RadarView isNavigating={isNavigating} currentSpeed={currentSpeed} />
-        </div>
-      </main>
+            {/* Weather & Traffic Impact */}
+            <div className="space-y-4 pt-6 mt-6 border-t border-neutral-800">
+              <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
+                <CloudRain className="w-4 h-4 text-blue-400" />
+                Weather Predictor
+              </h2>
+              
+              <div className="space-y-3">
+                <div className="relative">
+                  <input
+                    type="time"
+                    value={weatherTime}
+                    onChange={(e) => setWeatherTime(e.target.value)}
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg py-2 px-4 text-sm focus:outline-none focus:border-blue-500 transition-colors text-neutral-300"
+                    style={{ colorScheme: 'dark' }}
+                    suppressHydrationWarning
+                  />
+                </div>
+                
+                <button
+                  onClick={generateWeatherImpact}
+                  disabled={isWeatherPredicting}
+                  className="w-full py-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg text-sm font-medium hover:bg-blue-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  suppressHydrationWarning
+                >
+                  {isWeatherPredicting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                      Analyzing Weather...
+                    </>
+                  ) : (
+                    'Predict Weather Impact'
+                  )}
+                </button>
+
+                {weatherResult && (
+                  <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-lg text-sm text-neutral-300 leading-relaxed">
+                    {weatherResult}
+                  </div>
+                )}
+              </div>
+            </div>
+
+         </div>
+      </div>
     </div>
   );
 }

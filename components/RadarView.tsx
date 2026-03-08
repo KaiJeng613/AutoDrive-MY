@@ -97,7 +97,7 @@ export default function RadarView({ isNavigating, currentSpeed }: { isNavigating
           return { ...e, y: e.y + dy };
         });
 
-        // 2. Prevent Stacking (Simulated Adaptive Cruise Control / Collision Avoidance)
+        // 2. Prevent Stacking (Strict Collision Avoidance)
         for (let lane = 0; lane < 3; lane++) {
           // Sort by Y descending (closest to our car at y=85 first)
           const laneEntities = newEntities.filter(e => e.lane === lane).sort((a, b) => b.y - a.y);
@@ -106,13 +106,15 @@ export default function RadarView({ isNavigating, currentSpeed }: { isNavigating
             const front = laneEntities[i]; // Car closer to us
             const back = laneEntities[i + 1]; // Car further ahead
             
+            const safeDist = 22; // Strict safe distance
+            
             // If the back car is too close to the front car
-            if (front.y - back.y < 15 && front.type !== 'WALL' && back.type !== 'WALL') {
+            if (front.y - back.y < safeDist && front.type !== 'WALL' && back.type !== 'WALL') {
               // Match speed and maintain distance to prevent stacking
               const backIndex = newEntities.findIndex(e => e.id === back.id);
               if (backIndex !== -1) {
                 newEntities[backIndex].speed = front.speed;
-                newEntities[backIndex].y = front.y - 15;
+                newEntities[backIndex].y = front.y - safeDist; // Force separation
               }
             }
           }
@@ -124,8 +126,8 @@ export default function RadarView({ isNavigating, currentSpeed }: { isNavigating
         // 4. Spawn new entities safely
         if (Math.random() > 0.85 && newEntities.length < 10) {
           const newE = generateEntity();
-          // Only spawn if the space is clear
-          const conflict = newEntities.some(e => e.lane === newE.lane && Math.abs(e.y - newE.y) < 20);
+          // Only spawn if the space is completely clear at the top
+          const conflict = newEntities.some(e => e.lane === newE.lane && e.y < 15);
           if (!conflict) {
             newEntities.push(newE);
           }
@@ -169,33 +171,36 @@ export default function RadarView({ isNavigating, currentSpeed }: { isNavigating
     .sort((a, b) => b.y - a.y)[0];
 
   return (
-    <div className="w-full h-full relative bg-neutral-950 overflow-hidden">
-      {/* Radar Grid Background */}
-      <div className="absolute inset-0 opacity-20" 
-           style={{
-             backgroundImage: 'linear-gradient(#333 1px, transparent 1px), linear-gradient(90deg, #333 1px, transparent 1px)',
-             backgroundSize: '40px 40px',
-             transform: 'perspective(500px) rotateX(60deg) translateY(-100px) scale(2)',
-             transformOrigin: 'top center'
-           }} 
-      />
+    <div className="w-full h-full relative bg-[#111111] overflow-hidden">
+      {/* Road Background (Tesla Style) */}
+      <div className="absolute inset-0 flex justify-center">
+        <div className="w-[80%] h-full bg-[#1c1c1c] relative">
+          {/* Lane Lines */}
+          <div className="absolute left-[33%] top-0 bottom-0 w-1 border-l-2 border-dashed border-neutral-500/30" />
+          <div className="absolute left-[66%] top-0 bottom-0 w-1 border-l-2 border-dashed border-neutral-500/30" />
+          {/* Road Edges */}
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-neutral-500/50" />
+          <div className="absolute right-0 top-0 bottom-0 w-1 bg-neutral-500/50" />
+        </div>
+      </div>
 
-      {/* Openpilot Simulated Path Prediction */}
+      {/* Openpilot / Tesla Simulated Path Prediction */}
       {isNavigating && (
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full pointer-events-none z-10">
           <polygon 
             points="46,85 54,85 52,20 48,20" 
-            fill="rgba(34, 197, 94, 0.15)" 
+            fill="rgba(59, 130, 246, 0.15)" 
             className="transition-all duration-300"
+          />
+          <polyline 
+            points="50,85 50,20" 
+            stroke="rgba(59, 130, 246, 0.8)" 
+            strokeWidth="0.5" 
+            fill="none" 
+            strokeDasharray="2,2" 
           />
         </svg>
       )}
-
-      {/* Center Line */}
-      <div className="absolute left-1/2 top-0 bottom-0 w-px bg-emerald-500/30 -translate-x-1/2" />
-      {/* Lane Lines */}
-      <div className="absolute left-[20%] top-0 bottom-0 w-px border-l-2 border-dashed border-neutral-700/50" />
-      <div className="absolute left-[80%] top-0 bottom-0 w-px border-l-2 border-dashed border-neutral-700/50" />
 
       {/* Proximity Alert Overlay */}
       {proximityAlert && (
@@ -207,21 +212,22 @@ export default function RadarView({ isNavigating, currentSpeed }: { isNavigating
         </div>
       )}
 
-      {/* Our Car (Ego Vehicle) */}
+      {/* Our Car (Ego Vehicle - Tesla Style) */}
       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center z-20">
-        <div className={`w-12 h-24 rounded-lg relative transition-colors duration-300 ${proximityAlert ? 'bg-red-500/20 border-2 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.6)]' : 'bg-emerald-500/20 border-2 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]'}`}>
-          <div className={`absolute top-2 left-1/2 -translate-x-1/2 w-8 h-4 rounded-sm ${proximityAlert ? 'bg-red-400/50' : 'bg-emerald-400/50'}`} />
-          <div className={`absolute bottom-2 left-1/2 -translate-x-1/2 w-8 h-4 rounded-sm ${proximityAlert ? 'bg-red-400/50' : 'bg-emerald-400/50'}`} />
-        </div>
-        <div className={`mt-2 text-xs font-mono px-2 py-1 rounded border ${proximityAlert ? 'text-red-400 bg-red-900/80 border-red-500/30' : 'text-emerald-400 bg-neutral-900/80 border-emerald-500/30'}`}>
-          {proximityAlert ? 'EVASIVE MANEUVER' : 'OPENPILOT ACTIVE'}
+        <div className={`w-12 h-24 rounded-xl relative transition-colors duration-300 shadow-2xl ${proximityAlert ? 'bg-red-500/40 border-2 border-red-500' : 'bg-neutral-300 border border-white'}`}>
+          {/* Car details */}
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-8 h-6 bg-neutral-800 rounded-t-lg opacity-80" />
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-8 h-4 bg-neutral-800 rounded-b-sm opacity-80" />
+          {/* Headlights */}
+          <div className="absolute top-0 left-1 w-2 h-1 bg-white rounded-full shadow-[0_-5px_10px_rgba(255,255,255,0.8)]" />
+          <div className="absolute top-0 right-1 w-2 h-1 bg-white rounded-full shadow-[0_-5px_10px_rgba(255,255,255,0.8)]" />
         </div>
       </div>
 
       {/* Lead Car Indicator (Openpilot Style) */}
       {leadCar && (
         <motion.div
-          className="absolute z-20 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]"
+          className="absolute z-20 text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]"
           animate={{ 
             left: `${leadCar.x}%`, 
             top: `${leadCar.y + 12}%`, 
@@ -251,77 +257,39 @@ export default function RadarView({ isNavigating, currentSpeed }: { isNavigating
         >
           {/* Render based on type */}
           {entity.type === 'CAR' || entity.type === 'EV' ? (
-            <div className={`w-10 h-20 border-2 rounded-md relative ${entity.type === 'EV' ? 'border-blue-400 bg-blue-400/10' : 'border-neutral-500 bg-neutral-500/10'}`}>
-               <div className="absolute inset-0 flex items-center justify-center opacity-50">
-                 <div className="w-1 h-1 bg-white rounded-full" />
-               </div>
+            <div className={`w-10 h-20 rounded-lg relative shadow-lg ${entity.type === 'EV' ? 'bg-blue-200/90 border border-blue-400' : 'bg-neutral-400/90 border border-neutral-300'}`}>
+               <div className="absolute top-2 left-1/2 -translate-x-1/2 w-6 h-4 bg-neutral-800/50 rounded-sm" />
+               <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-6 h-3 bg-neutral-800/50 rounded-sm" />
             </div>
           ) : entity.type === 'MOTORCYCLE' ? (
-            <div className="w-4 h-12 border-2 border-yellow-500 bg-yellow-500/10 rounded-sm relative">
-               <div className="absolute inset-0 flex items-center justify-center opacity-50">
-                 <div className="w-1 h-1 bg-yellow-200 rounded-full" />
-               </div>
+            <div className="w-4 h-12 bg-neutral-400/90 border border-neutral-300 rounded-sm relative shadow-lg">
+               <div className="absolute top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-neutral-800/50 rounded-full" />
             </div>
           ) : entity.type === 'PEDESTRIAN' ? (
-            <div className="w-6 h-6 rounded-full bg-orange-500/40 border border-orange-500 relative shadow-[0_0_15px_rgba(249,115,22,0.8)]">
-               {/* Heat signature core */}
-               <div className="absolute inset-1 bg-red-500 rounded-full blur-[2px]" />
-               <div className="absolute inset-2 bg-yellow-300 rounded-full" />
+            <div className="w-5 h-5 rounded-full bg-cyan-400/80 border border-cyan-300 relative shadow-[0_0_15px_rgba(34,211,238,0.6)]">
+               <div className="absolute inset-1 bg-cyan-200 rounded-full" />
             </div>
           ) : entity.type === 'WALL' ? (
-            <div className="w-2 h-32 bg-neutral-700/50 border-l border-r border-neutral-500 shadow-[0_0_10px_rgba(255,255,255,0.1)]" />
+            <div className="w-2 h-32 bg-red-500/50 border-l border-r border-red-400 shadow-[0_0_10px_rgba(239,68,68,0.3)]" />
           ) : null}
           
           {/* Label */}
           <div className="mt-1 flex flex-col items-center">
-            <div className={`text-[10px] font-mono px-1.5 py-0.5 rounded flex items-center gap-1 whitespace-nowrap 
-              ${entity.type === 'EV' ? 'bg-blue-900/80 text-blue-300 border border-blue-500/30' : 
-                entity.type === 'MOTORCYCLE' ? 'bg-yellow-900/80 text-yellow-300 border border-yellow-500/30' :
-                entity.type === 'PEDESTRIAN' ? 'bg-orange-900/80 text-orange-300 border border-orange-500/30' :
-                entity.type === 'WALL' ? 'bg-neutral-800/80 text-neutral-400 border border-neutral-600/30' :
-                'bg-neutral-800/80 text-neutral-300 border border-neutral-600/30'}`}>
+            <div className={`text-[9px] font-mono px-1.5 py-0.5 rounded flex items-center gap-1 whitespace-nowrap 
+              ${entity.type === 'EV' ? 'bg-blue-900/80 text-blue-300' : 
+                entity.type === 'MOTORCYCLE' ? 'bg-neutral-800/80 text-neutral-300' :
+                entity.type === 'PEDESTRIAN' ? 'bg-cyan-900/80 text-cyan-300' :
+                entity.type === 'WALL' ? 'bg-red-900/80 text-red-300' :
+                'bg-neutral-800/80 text-neutral-300'}`}>
               
-              {entity.type === 'EV' && <Zap className="w-3 h-3" />}
-              {entity.type === 'MOTORCYCLE' && <Bike className="w-3 h-3" />}
-              {entity.type === 'PEDESTRIAN' && <User className="w-3 h-3" />}
+              {entity.type === 'EV' && <Zap className="w-2.5 h-2.5" />}
+              {entity.type === 'MOTORCYCLE' && <Bike className="w-2.5 h-2.5" />}
+              {entity.type === 'PEDESTRIAN' && <User className="w-2.5 h-2.5" />}
               {entity.model}
             </div>
-            {entity.type !== 'WALL' && entity.type !== 'PEDESTRIAN' && (
-              <div className="text-[9px] font-mono text-neutral-500 mt-0.5">
-                {Math.round(entity.speed)} km/h
-              </div>
-            )}
           </div>
         </motion.div>
       ))}
-
-      {/* Overlay UI */}
-      <div className="absolute top-4 left-4 z-30">
-        <div className="text-xs font-mono text-neutral-500 mb-1">COMMA.AI / OPENPILOT VISION</div>
-        <div className="flex gap-2">
-          <div className="px-2 py-1 bg-neutral-900 border border-neutral-800 rounded text-xs text-emerald-400 flex items-center gap-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            LIDAR
-          </div>
-          <div className="px-2 py-1 bg-neutral-900 border border-neutral-800 rounded text-xs text-emerald-400 flex items-center gap-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            RADAR
-          </div>
-          <div className="px-2 py-1 bg-neutral-900 border border-neutral-800 rounded text-xs text-orange-400 flex items-center gap-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
-            THERMAL
-          </div>
-        </div>
-      </div>
-      
-      {!isNavigating && (
-        <div className="absolute inset-0 bg-neutral-950/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="text-neutral-500 font-mono text-sm flex items-center gap-2">
-            <Car className="w-5 h-5" />
-            SYSTEM STANDBY
-          </div>
-        </div>
-      )}
     </div>
   );
 }

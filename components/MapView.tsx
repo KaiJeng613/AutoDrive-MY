@@ -25,6 +25,16 @@ if (typeof window !== "undefined") {
   });
 }
 
+// Custom EV Charger Icon
+const evChargerIcon = typeof window !== "undefined" ? L.divIcon({
+  className: "bg-transparent",
+  html: `<div class="w-8 h-8 bg-blue-600 rounded-full border-2 border-white flex items-center justify-center shadow-lg shadow-blue-500/50">
+           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>
+         </div>`,
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+}) : undefined;
+
 interface MapViewProps {
   origin: string;
   destination: string;
@@ -43,6 +53,13 @@ const ROUTE_POINTS: [number, number][] = [
   [3.315, 101.765], // Karak Highway start
   [3.385, 101.785], // Gohtong Jaya
   [3.4226, 101.7946], // Genting
+];
+
+// EV Charging Stations along the route
+const EV_CHARGERS = [
+  { id: 1, name: "Genting Sempah R&R DC Charger", coords: [3.35, 101.78] as [number, number], type: "120kW DCFC", available: 2 },
+  { id: 2, name: "Batu Caves Supercharger", coords: [3.24, 101.68] as [number, number], type: "250kW Supercharger", available: 4 },
+  { id: 3, name: "Setapak AC Charger", coords: [3.19, 101.71] as [number, number], type: "11kW AC", available: 1 },
 ];
 
 function MapController({ isNavigating }: { isNavigating: boolean }) {
@@ -95,14 +112,27 @@ export default function MapView({
 
       <MapController isNavigating={isNavigating} />
 
+      {/* Always show EV Chargers */}
+      {evChargerIcon && EV_CHARGERS.map(charger => (
+        <Marker key={charger.id} position={charger.coords} icon={evChargerIcon}>
+          <Popup className="bg-neutral-900 text-white border-neutral-800">
+            <div className="text-sm font-bold text-blue-400 flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>
+              {charger.name}
+            </div>
+            <div className="text-xs text-neutral-300 mt-1">{charger.type}</div>
+            <div className="text-xs text-emerald-400 mt-1">{charger.available} ports available</div>
+          </Popup>
+        </Marker>
+      ))}
+
       {isNavigating && (
         <>
           <Polyline
             positions={ROUTE_POINTS}
-            color="#10b981"
-            weight={5}
+            color="#3b82f6" // Tesla blue path
+            weight={6}
             opacity={0.8}
-            dashArray="10, 10"
             className="animate-pulse"
           />
           <Marker position={KL_COORDS}>
