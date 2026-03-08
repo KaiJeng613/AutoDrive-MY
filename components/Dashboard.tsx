@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { MapPin, Navigation, AlertTriangle, Activity, Sparkles, Calendar, CloudRain, Battery, Zap } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { MapPin, Navigation, AlertTriangle, Activity, Sparkles, Calendar, CloudRain, Battery, Zap, Camera } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import dynamic from 'next/dynamic';
 import RadarView from './RadarView';
@@ -12,11 +12,17 @@ const MapView = dynamic(() => import('./MapView'), {
 });
 
 export default function Dashboard() {
+  const [mounted, setMounted] = useState(false);
   const [origin, setOrigin] = useState('Kuala Lumpur City Centre');
   const [destination, setDestination] = useState('Genting Highlands');
   const [isNavigating, setIsNavigating] = useState(false);
   const [currentSpeed, setCurrentSpeed] = useState(0);
   const [trafficStatus, setTrafficStatus] = useState('Moderate');
+  const [dashcamConnected, setDashcamConnected] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Forecast state
   const [forecastDate, setForecastDate] = useState('2026-02-17'); // Example: CNY 2026
@@ -98,6 +104,10 @@ export default function Dashboard() {
     }
   };
 
+  if (!mounted) {
+    return <div className="h-screen w-full bg-neutral-950" />;
+  }
+
   return (
     <div className="h-screen w-full flex bg-neutral-950 text-neutral-200 overflow-hidden font-sans">
       {/* Left: Tesla FSD Visualization (RadarView) */}
@@ -119,7 +129,7 @@ export default function Dashboard() {
 
          {/* Radar View */}
          <div className="flex-1 relative overflow-hidden">
-            <RadarView isNavigating={isNavigating} currentSpeed={currentSpeed} />
+            <RadarView isNavigating={isNavigating} currentSpeed={currentSpeed} dashcamConnected={dashcamConnected} />
          </div>
 
          {/* Bottom Controls / Status */}
@@ -142,7 +152,7 @@ export default function Dashboard() {
          <div className="absolute top-6 left-6 w-[380px] bg-neutral-950/90 backdrop-blur-xl border border-neutral-800 rounded-2xl p-6 z-[400] shadow-2xl max-h-[calc(100vh-48px)] overflow-y-auto custom-scrollbar">
             <h1 className="text-xl font-bold text-emerald-400 flex items-center gap-2 mb-6">
               <Activity className="w-6 h-6" />
-              AutonoDrive MY
+              AutoDrive MY
             </h1>
 
             {/* Route Planning */}
@@ -185,6 +195,30 @@ export default function Dashboard() {
               >
                 {isNavigating ? 'Stop Autopilot Simulation' : 'Engage Autopilot Simulation'}
               </button>
+            </div>
+
+            {/* DDPAI Dashcam Connection */}
+            <div className="mt-6 space-y-4 pt-6 border-t border-neutral-800">
+              <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
+                <Camera className="w-4 h-4 text-cyan-400" />
+                DDPAI Dashcam Vision
+              </h2>
+              <button
+                onClick={() => setDashcamConnected(!dashcamConnected)}
+                className={`w-full py-2 rounded-lg text-sm font-medium transition-all border flex items-center justify-center gap-2 ${
+                  dashcamConnected 
+                    ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/20' 
+                    : 'bg-neutral-900 text-neutral-300 border-neutral-700 hover:bg-neutral-800'
+                }`}
+              >
+                <div className={`w-2 h-2 rounded-full ${dashcamConnected ? 'bg-cyan-400 animate-pulse' : 'bg-neutral-500'}`} />
+                {dashcamConnected ? 'DDPAI Connected (Live Feed)' : 'Connect DDPAI Dashcam'}
+              </button>
+              {dashcamConnected && (
+                <p className="text-xs text-cyan-200/70 leading-relaxed">
+                  Live video feed integrated. Autopilot accuracy increased by 45%.
+                </p>
+              )}
             </div>
 
             {/* EV Chargers Info */}

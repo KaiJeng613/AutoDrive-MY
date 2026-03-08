@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { motion } from 'motion/react';
-import { Car, Zap, User, Bike, ShieldAlert, ChevronDown } from 'lucide-react';
+import { Car, Zap, User, Bike, ShieldAlert, ChevronDown, Camera } from 'lucide-react';
 
 type EntityType = 'CAR' | 'EV' | 'MOTORCYCLE' | 'PEDESTRIAN' | 'WALL';
 
@@ -34,9 +34,31 @@ const MOTO_MODELS = [
   { model: 'Honda RS150R', type: 'MOTORCYCLE' },
 ];
 
-export default function RadarView({ isNavigating, currentSpeed }: { isNavigating: boolean, currentSpeed: number }) {
+export default function RadarView({ isNavigating, currentSpeed, dashcamConnected }: { isNavigating: boolean, currentSpeed: number, dashcamConnected: boolean }) {
   const [entities, setEntities] = useState<Entity[]>([]);
   const [proximityAlert, setProximityAlert] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Handle Dashcam Connection
+  useEffect(() => {
+    if (dashcamConnected) {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(stream => {
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        })
+        .catch(err => {
+          console.error("Error accessing dashcam:", err);
+        });
+    } else {
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null;
+      }
+    }
+  }, [dashcamConnected]);
 
   // Simulate entities with Openpilot-style physics
   useEffect(() => {
@@ -172,6 +194,17 @@ export default function RadarView({ isNavigating, currentSpeed }: { isNavigating
 
   return (
     <div className="w-full h-full relative bg-[#111111] overflow-hidden">
+      {/* Dashcam Video Feed */}
+      {dashcamConnected && (
+        <video 
+          ref={videoRef} 
+          autoPlay 
+          playsInline 
+          muted 
+          className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-screen z-0"
+        />
+      )}
+
       {/* Road Background (Tesla Style) */}
       <div className="absolute inset-0 flex justify-center">
         <div className="w-[80%] h-full bg-[#1c1c1c] relative">
@@ -290,6 +323,33 @@ export default function RadarView({ isNavigating, currentSpeed }: { isNavigating
           </div>
         </motion.div>
       ))}
+
+      {/* Overlay UI */}
+      <div className="absolute top-4 left-4 z-30">
+        <div className="text-xs font-mono text-neutral-500 mb-1">
+          {dashcamConnected ? 'DDPAI VISION ACTIVE' : 'COMMA.AI / OPENPILOT VISION'}
+        </div>
+        <div className="flex gap-2">
+          {dashcamConnected && (
+            <div className="px-2 py-1 bg-neutral-900 border border-neutral-800 rounded text-xs text-cyan-400 flex items-center gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+              DASHCAM
+            </div>
+          )}
+          <div className="px-2 py-1 bg-neutral-900 border border-neutral-800 rounded text-xs text-emerald-400 flex items-center gap-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            LIDAR
+          </div>
+          <div className="px-2 py-1 bg-neutral-900 border border-neutral-800 rounded text-xs text-emerald-400 flex items-center gap-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            RADAR
+          </div>
+          <div className="px-2 py-1 bg-neutral-900 border border-neutral-800 rounded text-xs text-orange-400 flex items-center gap-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+            THERMAL
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
