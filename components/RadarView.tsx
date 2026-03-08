@@ -327,7 +327,7 @@ export default function RadarView({ isNavigating, currentSpeed, dashcamConnected
       {/* Overlay UI */}
       <div className="absolute top-4 left-4 z-30">
         <div className="text-xs font-mono text-neutral-500 mb-1">
-          {dashcamConnected ? 'DDPAI VISION ACTIVE' : 'COMMA.AI / OPENPILOT VISION'}
+          {dashcamConnected ? 'DASHCAM VISION ACTIVE' : 'COMMA.AI / OPENPILOT VISION'}
         </div>
         <div className="flex gap-2">
           {dashcamConnected && (

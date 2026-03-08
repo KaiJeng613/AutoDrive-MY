@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MapPin, Navigation, AlertTriangle, Activity, Sparkles, Calendar, CloudRain, Battery, Zap, Camera } from 'lucide-react';
+import { MapPin, Navigation, AlertTriangle, Activity, Sparkles, Calendar, CloudRain, Battery, Zap, Camera, Play, Pause, SkipBack, SkipForward, Music } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import dynamic from 'next/dynamic';
 import RadarView from './RadarView';
@@ -20,9 +20,83 @@ export default function Dashboard() {
   const [trafficStatus, setTrafficStatus] = useState('Moderate');
   const [dashcamConnected, setDashcamConnected] = useState(false);
 
+  // Spotify State
+  const [spotifyToken, setSpotifyToken] = useState<string | null>(null);
+  const [spotifyTrack, setSpotifyTrack] = useState<{ name: string, artist: string, isPlaying: boolean } | null>(null);
+
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Spotify Auth Listener
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'SPOTIFY_AUTH_SUCCESS') {
+        setSpotifyToken(event.data.token);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  // Spotify Track Polling
+  useEffect(() => {
+    if (!spotifyToken) return;
+    
+    const fetchTrack = async () => {
+      try {
+        const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+          headers: { Authorization: `Bearer ${spotifyToken}` }
+        });
+        if (res.status === 200) {
+          const data = await res.json();
+          setSpotifyTrack({
+            name: data.item?.name,
+            artist: data.item?.artists?.[0]?.name,
+            isPlaying: data.is_playing
+          });
+        } else if (res.status === 204) {
+          setSpotifyTrack(null);
+        }
+      } catch (e) {
+        console.error("Spotify fetch error:", e);
+      }
+    };
+
+    fetchTrack();
+    const interval = setInterval(fetchTrack, 5000);
+    return () => clearInterval(interval);
+  }, [spotifyToken]);
+
+  const handleSpotifyConnect = async () => {
+    try {
+      const response = await fetch('/api/auth/spotify/url');
+      if (!response.ok) throw new Error('Failed to get auth URL');
+      const { url } = await response.json();
+      window.open(url, 'spotify_auth', 'width=600,height=700');
+    } catch (error) {
+      console.error('Spotify Auth error:', error);
+      alert('Failed to connect to Spotify. Please check your API keys.');
+    }
+  };
+
+  const toggleSpotifyPlay = async () => {
+    if (!spotifyToken) return;
+    const endpoint = spotifyTrack?.isPlaying ? 'pause' : 'play';
+    await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${spotifyToken}` }
+    });
+    setSpotifyTrack(prev => prev ? { ...prev, isPlaying: !prev.isPlaying } : null);
+  };
+
+  const skipSpotifyTrack = async (direction: 'next' | 'previous') => {
+    if (!spotifyToken) return;
+    await fetch(`https://api.spotify.com/v1/me/player/${direction}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${spotifyToken}` }
+    });
+  };
 
   // Forecast state
   const [forecastDate, setForecastDate] = useState('2026-02-17'); // Example: CNY 2026
@@ -149,7 +223,51 @@ export default function Dashboard() {
          <MapView origin={origin} destination={destination} isNavigating={isNavigating} />
 
          {/* Floating Control Panel */}
-         <div className="absolute top-6 left-6 w-[380px] bg-neutral-950/90 backdrop-blur-xl border border-neutral-800 rounded-2xl p-6 z-[400] shadow-2xl max-h-[calc(100vh-48px)] overflow-y-auto custom-scrollbar">
+         {isNavigating ? (
+            <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-neutral-950/90 backdrop-blur-xl border border-neutral-800 rounded-full px-6 py-3 z-[400] shadow-2xl flex items-center gap-6">
+              <div className="flex items-center gap-3">
+                <Navigation className="w-5 h-5 text-emerald-500" />
+                <div className="flex flex-col">
+                  <span className="text-xs text-neutral-400">Navigating to</span>
+                  <span className="text-sm font-bold text-white">{destination}</span>
+                </div>
+              </div>
+              
+              <div className="w-px h-8 bg-neutral-800" />
+              
+              {/* Spotify Mini Player */}
+              {spotifyToken ? (
+                <div className="flex items-center gap-4">
+                  <div className="flex flex-col w-32">
+                    <span className="text-xs font-bold text-white truncate">{spotifyTrack?.name || 'No track playing'}</span>
+                    <span className="text-[10px] text-neutral-400 truncate">{spotifyTrack?.artist || 'Spotify'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => skipSpotifyTrack('previous')} className="p-2 hover:bg-neutral-800 rounded-full transition-colors"><SkipBack className="w-4 h-4 text-neutral-300" /></button>
+                    <button onClick={toggleSpotifyPlay} className="p-2 bg-emerald-500 text-black hover:bg-emerald-400 rounded-full transition-colors">
+                      {spotifyTrack?.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    </button>
+                    <button onClick={() => skipSpotifyTrack('next')} className="p-2 hover:bg-neutral-800 rounded-full transition-colors"><SkipForward className="w-4 h-4 text-neutral-300" /></button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={handleSpotifyConnect} className="flex items-center gap-2 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors">
+                  <Music className="w-4 h-4" />
+                  Connect Spotify
+                </button>
+              )}
+
+              <div className="w-px h-8 bg-neutral-800" />
+              
+              <button 
+                onClick={toggleNavigation} 
+                className="px-4 py-2 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-full text-sm font-medium transition-colors"
+              >
+                Stop
+              </button>
+            </div>
+         ) : (
+          <div className="absolute top-6 left-6 w-[380px] bg-neutral-950/90 backdrop-blur-xl border border-neutral-800 rounded-2xl p-6 z-[400] shadow-2xl max-h-[calc(100vh-48px)] overflow-y-auto custom-scrollbar">
             <h1 className="text-xl font-bold text-emerald-400 flex items-center gap-2 mb-6">
               <Activity className="w-6 h-6" />
               AutoDrive MY
@@ -197,11 +315,11 @@ export default function Dashboard() {
               </button>
             </div>
 
-            {/* DDPAI Dashcam Connection */}
+            {/* Dashcam Connection */}
             <div className="mt-6 space-y-4 pt-6 border-t border-neutral-800">
               <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
                 <Camera className="w-4 h-4 text-cyan-400" />
-                DDPAI Dashcam Vision
+                Wireless Dashcam Vision
               </h2>
               <button
                 onClick={() => setDashcamConnected(!dashcamConnected)}
@@ -212,12 +330,42 @@ export default function Dashboard() {
                 }`}
               >
                 <div className={`w-2 h-2 rounded-full ${dashcamConnected ? 'bg-cyan-400 animate-pulse' : 'bg-neutral-500'}`} />
-                {dashcamConnected ? 'DDPAI Connected (Live Feed)' : 'Connect DDPAI Dashcam'}
+                {dashcamConnected ? 'Dashcam Connected (Live Feed)' : 'Connect Dashcam via Bluetooth'}
               </button>
               {dashcamConnected && (
                 <p className="text-xs text-cyan-200/70 leading-relaxed">
                   Live video feed integrated. Autopilot accuracy increased by 45%.
                 </p>
+              )}
+            </div>
+
+            {/* Spotify Integration */}
+            <div className="mt-6 space-y-4 pt-6 border-t border-neutral-800">
+              <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
+                <Music className="w-4 h-4 text-emerald-400" />
+                Spotify Integration
+              </h2>
+              {!spotifyToken ? (
+                <button
+                  onClick={handleSpotifyConnect}
+                  className="w-full py-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-lg text-sm font-medium hover:bg-emerald-500/20 transition-colors flex items-center justify-center gap-2"
+                >
+                  Connect Spotify Account
+                </button>
+              ) : (
+                <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-lg flex items-center justify-between">
+                  <div className="flex flex-col w-48">
+                    <span className="text-sm font-bold text-white truncate">{spotifyTrack?.name || 'No track playing'}</span>
+                    <span className="text-xs text-neutral-400 truncate">{spotifyTrack?.artist || 'Spotify Connected'}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => skipSpotifyTrack('previous')} className="p-1.5 hover:bg-neutral-800 rounded-full transition-colors"><SkipBack className="w-4 h-4 text-neutral-300" /></button>
+                    <button onClick={toggleSpotifyPlay} className="p-1.5 bg-emerald-500 text-black hover:bg-emerald-400 rounded-full transition-colors">
+                      {spotifyTrack?.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    </button>
+                    <button onClick={() => skipSpotifyTrack('next')} className="p-1.5 hover:bg-neutral-800 rounded-full transition-colors"><SkipForward className="w-4 h-4 text-neutral-300" /></button>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -317,6 +465,7 @@ export default function Dashboard() {
             </div>
 
          </div>
+         )}
       </div>
     </div>
   );
